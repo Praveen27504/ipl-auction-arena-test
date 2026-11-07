@@ -19,13 +19,16 @@ async function init(){
   await applySession(session);
 }
 let authGeneration=0;
+let roomLoadGeneration=0;
+let realtimeChannelSerial=0;
 async function applySession(session){
   const generation=++authGeneration;
   const user=session?.user;
   const googleUser=!!user&&!user.is_anonymous;
   const newId=googleUser?user.id:null;
   if(me!==newId){clearTimeout(autoNominateTimeout);lastResultKey=null;
-    if(channel){await db.removeChannel(channel);channel=null;}
+    roomLoadGeneration++;
+    if(channel){const oldChannel=channel;channel=null;await db.removeChannel(oldChannel);}
     room=null;teams=[];players=[];bids=[];recentEvents=[];profileOpen=false;$('profileView').classList.add('hide');
     $('live').classList.add('hide');
   }
@@ -46,7 +49,44 @@ async function applySession(session){
 function rememberRoom(r){try{const key='ipl-recent-rooms-'+me;const old=JSON.parse(localStorage.getItem(key)||'[]');localStorage.setItem(key,JSON.stringify([{id:r.id,code:r.code,title:r.title,auction_ended:!!r.auction_ended},...old.filter(x=>x.id!==r.id)].slice(0,30)));}catch(e){}}
 function rememberedRooms(){try{return JSON.parse(localStorage.getItem('ipl-recent-rooms-'+me)||'[]')}catch(e){return []}}
 async function loadBannedUsers(){if(!room||room.host_id!==me){bannedUsers=[];return;}try{bannedUsers=await rpc('auction_list_bans',{p_room:room.id})||[]}catch(e){bannedUsers=[];}}
-async function loadRoom(code){hostSettingsDraft=null;let {data:r,error}=await db.from('rooms').select('*').eq('code',code.toUpperCase()).maybeSingle();if(error)throw error;if(!r){localStorage.removeItem('ipl-live-code');roomCode=null;return}room=r;endedCelebratedRoom=r.auction_ended?r.id:null;lastResultKey=r.result_serial??0;roomCode=r.code;localStorage.setItem('ipl-live-code',roomCode);rememberRoom(r);await refresh();await loadBannedUsers();if(channel)await db.removeChannel(channel);channel=db.channel('auction-'+room.id).on('postgres_changes',{event:'*',schema:'public',table:'rooms',filter:'id=eq.'+room.id},refresh).on('postgres_changes',{event:'*',schema:'public',table:'teams',filter:'room_id=eq.'+room.id},refresh).on('postgres_changes',{event:'*',schema:'public',table:'players',filter:'room_id=eq.'+room.id},refresh).on('postgres_changes',{event:'INSERT',schema:'public',table:'bids',filter:'room_id=eq.'+room.id},refresh).on('postgres_changes',{event:'INSERT',schema:'public',table:'auction_events',filter:'room_id=eq.'+room.id},refresh).subscribe();$('welcome').classList.add('hide');$('live').classList.toggle('hide',profileOpen);render();if(sessionStorage.getItem('ipl-left-'+room.id)==='yes'){sessionStorage.removeItem('ipl-left-'+room.id);showRejoinChoice()}}
+async function loadRoom(code){
+  const loadGeneration=++roomLoadGeneration;
+  hostSettingsDraft=null;
+  const {data:r,error}=await db.from('rooms').select('*').eq('code',code.toUpperCase()).maybeSingle();
+  if(loadGeneration!==roomLoadGeneration)return;
+  if(error)throw error;
+  if(!r){localStorage.removeItem('ipl-live-code');roomCode=null;return;}
+  // Remove the old subscription before registering listeners on a fresh channel.
+  // A unique channel name prevents Supabase from reusing an already subscribed channel.
+  if(channel){const oldChannel=channel;channel=null;await db.removeChannel(oldChannel);}
+  if(loadGeneration!==roomLoadGeneration)return;
+  room=r;
+  endedCelebratedRoom=r.auction_ended?r.id:null;
+  lastResultKey=r.result_serial??0;
+  roomCode=r.code;
+  localStorage.setItem('ipl-live-code',roomCode);
+  rememberRoom(r);
+  await refresh();
+  if(loadGeneration!==roomLoadGeneration)return;
+  await loadBannedUsers();
+  if(loadGeneration!==roomLoadGeneration)return;
+  const newChannel=db.channel('auction-'+r.id+'-'+(++realtimeChannelSerial))
+    .on('postgres_changes',{event:'*',schema:'public',table:'rooms',filter:'id=eq.'+r.id},refresh)
+    .on('postgres_changes',{event:'*',schema:'public',table:'teams',filter:'room_id=eq.'+r.id},refresh)
+    .on('postgres_changes',{event:'*',schema:'public',table:'players',filter:'room_id=eq.'+r.id},refresh)
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'bids',filter:'room_id=eq.'+r.id},refresh)
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'auction_events',filter:'room_id=eq.'+r.id},refresh);
+  if(loadGeneration!==roomLoadGeneration){await db.removeChannel(newChannel);return;}
+  channel=newChannel;
+  newChannel.subscribe();
+  $('welcome').classList.add('hide');
+  $('live').classList.toggle('hide',profileOpen);
+  render();
+  if(sessionStorage.getItem('ipl-left-'+r.id)==='yes'){
+    sessionStorage.removeItem('ipl-left-'+r.id);
+    showRejoinChoice();
+  }
+}
 let refreshInFlight=null;
 async function refresh(){if(refreshInFlight)return refreshInFlight;refreshInFlight=refreshData().finally(()=>{refreshInFlight=null});return refreshInFlight;}
 async function refreshData(){if(!room)return;let [rr,tt,pp,bb]=await Promise.all([db.from('rooms').select('*').eq('id',room.id).single(),db.from('teams').select('*').eq('room_id',room.id).order('name'),db.from('players').select('*').eq('room_id',room.id).order('name'),db.from('bids').select('*').eq('room_id',room.id).order('id',{ascending:false}).limit(1000)]);for(let x of [rr,tt,pp,bb])if(x.error){notice(x.error.message,true);return}room=rr.data;teams=tt.data;players=pp.data;bids=bb.data;const ev=await db.from('auction_events').select('*').eq('room_id',room.id).order('id',{ascending:false}).limit(250);if(!ev.error)recentEvents=ev.data;showResultIfNew();if(room.auction_ended&&endedCelebratedRoom!==room.id){endedCelebratedRoom=room.id;confettiBurst();}render()}
@@ -237,7 +277,7 @@ if(t.id==='auctionAgainBtn'){if(!confirm('Create a fresh auction with the same p
 await refresh();
 notice('Imported '+total+' players successfully')}catch(err){notice(err.message,true)}}else if(t.id==='addBtn'){try{notice('');await rpc('add_player_with_photo',{p_room:room.id,p_name:$('pname').value.trim(),p_role:$('prole').value,p_lot:$('plot').value.trim(),p_base:Number($('pbase').value),p_nationality:$('pnationality').value.trim(),p_stats:readStats(),p_photo_url:$('pphoto').value.trim()});savedPlayerDraft=null;savedStatsDraft=null;await refresh();}catch(e){notice(e.message,true)}}};
 document.querySelector('nav').onclick=e=>{let t=e.target.closest('[data-tab]');if(t){tab=t.dataset.tab;render()}};
-$('leaveBtn').onclick=async()=>{if(room)sessionStorage.setItem('ipl-left-'+room.id,'yes');localStorage.removeItem('ipl-live-code');if(channel)await db.removeChannel(channel);room=null;$('live').classList.add('hide');$('welcome').classList.remove('hide');clearTimeout(autoNominateTimeout);lastResultKey=null;notice('Left room view. Your franchise remains linked to your Google account. Rejoin with the room code on any device.')};
+$('leaveBtn').onclick=async()=>{if(room)sessionStorage.setItem('ipl-left-'+room.id,'yes');localStorage.removeItem('ipl-live-code');roomLoadGeneration++;if(channel){const oldChannel=channel;channel=null;await db.removeChannel(oldChannel);}room=null;$('live').classList.add('hide');$('welcome').classList.remove('hide');clearTimeout(autoNominateTimeout);lastResultKey=null;notice('Left room view. Your franchise remains linked to your Google account. Rejoin with the room code on any device.')};
 let settlementBusy = false;
 let lastSettlementAttempt = 0;
 
