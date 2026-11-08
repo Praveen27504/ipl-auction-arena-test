@@ -163,7 +163,7 @@ async function loadRoom(code){
 }
 let refreshInFlight=null;
 async function refresh(){if(refreshInFlight)return refreshInFlight;refreshInFlight=refreshData().finally(()=>{refreshInFlight=null});return refreshInFlight;}
-async function refreshData(){if(!room)return;let [rr,tt,pp,bb]=await Promise.all([db.from('rooms').select('*').eq('id',room.id).single(),db.from('teams').select('*').eq('room_id',room.id).order('name'),db.from('players').select('*').eq('room_id',room.id).order('name'),db.from('bids').select('*').eq('room_id',room.id).order('id',{ascending:false}).limit(1000)]);for(let x of [rr,tt,pp,bb])if(x.error){notice(x.error.message,true);return}room=rr.data;teams=tt.data;players=pp.data;bids=bb.data;const xi=await db.from('playing_xis').select('*').eq('room_id',room.id);if(!xi.error)savedXis=xi.data||[];const ev=await db.from('auction_events').select('*').eq('room_id',room.id).order('id',{ascending:false}).limit(250);if(!ev.error)recentEvents=ev.data;showResultIfNew();if(room.nomination_mode!=='auto'||room.auction_paused||room.auction_ended||room.current_player) {if(autoNominateTimeout){clearTimeout(autoNominateTimeout);autoNominateTimeout=null;}}else scheduleAutoNomination(1200);if(room.auction_ended&&endedCelebratedRoom!==room.id){endedCelebratedRoom=room.id;confettiBurst();}render()}
+async function refreshData(){if(!room)return;let [rr,tt,pp,bb]=await Promise.all([db.from('rooms').select('*').eq('id',room.id).single(),db.from('teams').select('*').eq('room_id',room.id).order('name'),db.from('players').select('*').eq('room_id',room.id).order('name'),db.from('bids').select('*').eq('room_id',room.id).order('id',{ascending:false}).limit(1000)]);for(let x of [rr,tt,pp,bb])if(x.error){notice(x.error.message,true);return}room=rr.data;teams=tt.data;players=pp.data;bids=bb.data;const xi=await db.from('playing_xis').select('*').eq('room_id',room.id);if(!xi.error)savedXis=xi.data||[];const ev=await db.from('auction_events').select('*').eq('room_id',room.id).order('id',{ascending:false}).limit(250);if(!ev.error)recentEvents=ev.data;showResultIfNew();if(room.nomination_mode!=='auto'||room.auction_paused||room.auction_ended||room.current_player) {if(autoNominateTimeout){clearTimeout(autoNominateTimeout);autoNominateTimeout=null;}}else scheduleAutoNomination(1200);if(room.auction_ended&&endedCelebratedRoom!==room.id){endedCelebratedRoom=room.id;confettiBurst();}if(!(tab==='squads'&&room.auction_ended&&document.getElementById('xiCaptain')))render()}
 const roles=['Batter','Bowler','All-rounder','Wicketkeeper'];
 const countsFor=t=>Object.fromEntries(roles.map(role=>[role,players.filter(p=>p.owner_team===t.id&&p.role===role).length]));
 const mins=()=>room?.squad_minimums||{};
@@ -384,17 +384,21 @@ $('panel').addEventListener('change', async e=>{
 });
 $('panel').addEventListener('change',e=>{
  if(e.target.dataset.xiPlayer){const id=e.target.dataset.xiPlayer;if(e.target.checked){if(!xiDraftIds.includes(id))xiDraftIds.push(id)}else{xiDraftIds=xiDraftIds.filter(x=>x!==id);if(xiDraftCaptain===id)xiDraftCaptain='';if(xiDraftKeeper===id)xiDraftKeeper=''}render();return;}
- if(e.target.id==='xiCaptain'){xiDraftCaptain=e.target.value;return;}
- if(e.target.id==='xiKeeper'){xiDraftKeeper=e.target.value;return;}
+ if(e.target.id==='xiCaptain'){xiDraftCaptain=e.target.value;updateXiSaveState();return;}
+ if(e.target.id==='xiKeeper'){xiDraftKeeper=e.target.value;updateXiSaveState();return;}
  if(e.target.id==='poolLotFilter'){poolLotFilter=e.target.value;render()}else if(e.target.id==='poolStatusFilter'){poolStatusFilter=e.target.value;render()}});
-$('panel').addEventListener('focusout',e=>{
-  if(['xiCaptain','xiKeeper'].includes(e.target.id)){
-    setTimeout(()=>{if(tab==='squads'&&!['xiCaptain','xiKeeper'].includes(document.activeElement?.id))render()},0);
-  }
-});
+// Update the save control in place: never rebuild a native dropdown while choosing.
+function updateXiSaveState(){
+ const chosen=players.filter(p=>xiDraftIds.includes(p.id));
+ const keepers=chosen.filter(p=>p.role==='Wicketkeeper');
+ const valid=xiDraftIds.length===11&&new Set(xiDraftIds).size===11&&
+  chosen.filter(p=>playerOrigin(p)==='OS').length<=4&&
+  xiDraftIds.includes(xiDraftCaptain)&&keepers.some(p=>p.id===xiDraftKeeper);
+ const btn=document.getElementById('saveXiBtn');if(btn)btn.disabled=!valid;
+}
 $('panel').onclick=async e=>{let t=e.target.closest('button');if(!t)return;
 if(t.id==='resetXiBtn'){const mine=teams.find(x=>x.manager_id===me);const saved=savedXis.find(x=>x.team_id===mine?.id);xiDraftIds=[...(saved?.player_ids||[])];xiDraftCaptain=saved?.captain_id||'';xiDraftKeeper=saved?.wicketkeeper_id||'';render();return;}
-if(t.id==='saveXiBtn'){const mine=teams.find(x=>x.manager_id===me);if(!mine||!room.auction_ended)return;try{t.disabled=true;await rpc('save_playing_xi',{p_room:room.id,p_team:mine.id,p_players:xiDraftIds,p_captain:xiDraftCaptain,p_wicketkeeper:xiDraftKeeper});await refresh();notice('Playing XI saved successfully')}catch(err){notice('Could not save XI: '+err.message,true);t.disabled=false;}return;}
+if(t.id==='saveXiBtn'){const mine=teams.find(x=>x.manager_id===me);if(!mine||!room.auction_ended)return;try{t.disabled=true;await rpc('save_playing_xi',{p_room:room.id,p_team:mine.id,p_players:xiDraftIds,p_captain:xiDraftCaptain,p_wicketkeeper:xiDraftKeeper});await refresh();render();notice('Playing XI saved successfully')}catch(err){notice('Could not save XI: '+err.message,true);t.disabled=false;}return;}
 if(t.id==='copyRoomInvite'){const link=location.origin+location.pathname+'?room='+encodeURIComponent(room.code);try{await navigator.clipboard.writeText(link);notice('Invitation link copied')}catch(err){prompt('Copy room invitation link:',link)}return;}
 if(t.dataset.kickManager){const uid=t.dataset.kickManager;const franchise=teams.find(x=>x.manager_id===uid);if(!franchise||room.host_id!==me)return;if(!confirm('Kick and ban the manager of '+franchise.name+'? Their squad and purse will be preserved.'))return;try{await rpc('auction_kick_participant',{p_room:room.id,p_user:uid});await loadBannedUsers();await refresh();notice('Participant kicked and banned')}catch(err){notice(err.message,true)}return;}
 if(t.dataset.assignTeam){if(room.host_id!==me)return;const uid=prompt('Enter the replacement participant’s Google account user UUID (they must be registered).');if(!uid)return;try{await rpc('auction_reassign_franchise',{p_room:room.id,p_team:t.dataset.assignTeam,p_user:uid.trim()});await refresh();notice('Franchise reassigned')}catch(err){notice(err.message,true)}return;}
