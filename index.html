@@ -258,7 +258,8 @@ function restoreHostSettings(){
 let poolLotFilter='all',poolStatusFilter='all',skipPoolChoice='Elite Bowlers';
 function render(){if(!room||profileOpen)return;
 // Do not destroy an open native player picker during background refreshes.
-if(tab==='auction'&&document.activeElement?.id==='manualPlayerSelect')return;
+if((tab==='auction'&&document.activeElement?.id==='manualPlayerSelect')||
+   (tab==='squads'&&['xiCaptain','xiKeeper'].includes(document.activeElement?.id)))return;
 const activityScrollBefore=$('panel').querySelector('.recent-scroll')?.scrollTop??0;
 const pageScrollBefore=window.scrollY;
 const manualSelection=$('manualPlayerSelect')?.value||manualPlayerChoice||'';
@@ -383,9 +384,14 @@ $('panel').addEventListener('change', async e=>{
 });
 $('panel').addEventListener('change',e=>{
  if(e.target.dataset.xiPlayer){const id=e.target.dataset.xiPlayer;if(e.target.checked){if(!xiDraftIds.includes(id))xiDraftIds.push(id)}else{xiDraftIds=xiDraftIds.filter(x=>x!==id);if(xiDraftCaptain===id)xiDraftCaptain='';if(xiDraftKeeper===id)xiDraftKeeper=''}render();return;}
- if(e.target.id==='xiCaptain'){xiDraftCaptain=e.target.value;render();return;}
- if(e.target.id==='xiKeeper'){xiDraftKeeper=e.target.value;render();return;}
+ if(e.target.id==='xiCaptain'){xiDraftCaptain=e.target.value;return;}
+ if(e.target.id==='xiKeeper'){xiDraftKeeper=e.target.value;return;}
  if(e.target.id==='poolLotFilter'){poolLotFilter=e.target.value;render()}else if(e.target.id==='poolStatusFilter'){poolStatusFilter=e.target.value;render()}});
+$('panel').addEventListener('focusout',e=>{
+  if(['xiCaptain','xiKeeper'].includes(e.target.id)){
+    setTimeout(()=>{if(tab==='squads'&&!['xiCaptain','xiKeeper'].includes(document.activeElement?.id))render()},0);
+  }
+});
 $('panel').onclick=async e=>{let t=e.target.closest('button');if(!t)return;
 if(t.id==='resetXiBtn'){const mine=teams.find(x=>x.manager_id===me);const saved=savedXis.find(x=>x.team_id===mine?.id);xiDraftIds=[...(saved?.player_ids||[])];xiDraftCaptain=saved?.captain_id||'';xiDraftKeeper=saved?.wicketkeeper_id||'';render();return;}
 if(t.id==='saveXiBtn'){const mine=teams.find(x=>x.manager_id===me);if(!mine||!room.auction_ended)return;try{t.disabled=true;await rpc('save_playing_xi',{p_room:room.id,p_team:mine.id,p_players:xiDraftIds,p_captain:xiDraftCaptain,p_wicketkeeper:xiDraftKeeper});await refresh();notice('Playing XI saved successfully')}catch(err){notice('Could not save XI: '+err.message,true);t.disabled=false;}return;}
