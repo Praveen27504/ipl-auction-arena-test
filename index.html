@@ -76,6 +76,20 @@
 .xi-choice{display:flex;align-items:center;gap:10px;margin:0;padding:10px;border:1px solid var(--line,#384454);border-radius:9px;cursor:pointer}
 .xi-choice input{width:auto;flex:0 0 auto}.xi-choice small{display:block}
 @media(max-width:600px){.xi-player-grid{grid-template-columns:1fr}}
+
+/* Tournament fixtures: distinct cells, legible headers and responsive scrolling. */
+.fixture-table-wrap{width:100%;overflow-x:auto;border:1px solid var(--line,#384454);border-radius:12px;margin-top:14px}
+#panel table.fixture-table{display:table;width:100%;min-width:1080px;border-collapse:separate;border-spacing:0;overflow:visible;text-align:left}
+.fixture-table th,.fixture-table td{padding:13px 16px;border-right:1px solid var(--line,#384454);border-bottom:1px solid var(--line,#384454);vertical-align:middle;white-space:normal;overflow-wrap:normal}
+.fixture-table th:last-child,.fixture-table td:last-child{border-right:0}
+.fixture-table tbody tr:last-child td{border-bottom:0}
+.fixture-table thead th{background:rgba(125,145,170,.14);font-size:12px;text-transform:uppercase;letter-spacing:.045em;white-space:nowrap}
+.fixture-table tbody tr:nth-child(even){background:rgba(125,145,170,.055)}
+.fixture-table tbody tr:hover{background:rgba(125,145,170,.12)}
+.fixture-table .fixture-number{font-weight:800;white-space:nowrap}
+.fixture-table .fixture-team{font-weight:650;min-width:145px}
+.fixture-table .fixture-status{display:inline-block;border:1px solid var(--line,#384454);border-radius:999px;padding:4px 9px;font-size:12px;white-space:nowrap}
+@media(max-width:649px){.fixture-table th,.fixture-table td{padding:11px 12px}.fixture-table-wrap{margin-top:10px}}
 </style></head><body><header><div class="brand">🏏 IPL AUCTION ARENA</div><div class="row"><span class="tag" id="connection">CONNECTING</span><button class="alt hide" id="profileBtn" style="padding:7px 11px">My Profile</button><button class="alt hide" id="signOutBtn" style="padding:7px 11px">Sign out</button></div></header><div id="resultOverlay" class="result-overlay hide" aria-live="polite"><div id="resultContent" class="result-card"></div></div><main class="wrap"><div id="notice" role="status"></div><section id="authGate" class="card hide"><h2>Sign in to IPL Auction Arena</h2><p>Use the same Google account on every device to recover your franchise and Host Controls.</p><button id="googleBtn">Continue with Google</button><p class="muted small">Existing anonymous rooms are not automatically transferred to Google accounts. Finish or back up old auctions before switching identities.</p></section><section id="welcome" class="hide"><h1>Build your dream IPL franchise.</h1><p>Private multiplayer auctions. Sign in with Google to keep your franchise and Host Controls across devices.</p><div class="grid"><div class="card"><h2>Create a room</h2><label>Your display name (shown on this device)</label><input id="hostName" value="Host"><label>Room title</label><input id="title" value="Friends IPL Auction"><label>Auction player pool</label><select id="roomFormat"><option value="ipl_classic_325">IPL Classic — 325 predefined players</option><option value="custom">Custom — add or import players yourself</option><option value="mini_100" disabled>IPL Mini — 100 players (coming later)</option></select><p class="muted small">The Classic format loads all nine Excel lots and their statistics automatically. Custom rooms start empty.</p><label>Maximum franchises (2–10)</label><input id="slots" type="number" min="2" max="10" value="4"><p class="muted small">Participants name their own franchises when joining.</p><label>Purse (₹ Cr)</label><input id="purse" type="number" value="120" min="1" step=".01"><label>Bid increment (₹ Cr)</label><input id="increment" type="number" value=".25" min=".25" max=".25" step=".25" readonly><p><button id="createBtn">Create room</button></p></div><div class="card"><h2>Join a room</h2><label>Your name</label><input id="guestName" placeholder="Your name"><label>Room code</label><input id="code" placeholder="ABC123" maxlength="6" style="text-transform:uppercase"><p><button id="previewBtn">Find room</button></p><div id="preview"></div></div></div></section><section id="profileView" class="hide"><div class="row between"><h1>My Profile</h1><button class="alt" id="profileBackBtn">Back to auction</button></div><div id="profileContent" class="card"><p>Loading profile…</p></div></section><section id="live" class="hide"><div class="row between"><div><h1 id="roomTitle"></h1><p id="roomMeta"></p></div><button class="alt" id="replaceTeamBtn">Change franchise</button><button class="alt" id="leaveBtn">Leave this device</button></div><nav><button class="active" data-tab="auction">Auction</button><button data-tab="squads">Squads</button><button data-tab="players">Player Pool</button><button data-tab="history">Auction History</button><button data-tab="tournament">Tournament</button><button data-tab="host" id="hostTab" class="hide">Host Controls</button></nav><div id="panel"></div></section><footer class="muted small">Unofficial fan project. The multiplayer timed auction is implemented here; Playing XI selection is available after the auction ends. Match simulation is coming later.</footer></main><script type="module">
 import {createClient} from 'https://esm.sh/@supabase/supabase-js@2';
 // Paste ONLY your public Project URL and publishable/anon key. NEVER a service_role/secret key.
@@ -229,6 +243,38 @@ let tournamentConfig=null,tournamentReady=null,tournamentDraft=null,tournamentLo
 let savedXis=[], xiDraftTeam=null, xiDraftIds=[], xiDraftCaptain='', xiDraftKeeper='';
 const tournamentFormats=[['league_playoffs','League + IPL-style playoffs'],['round_robin','Round robin only'],['knockout','Single-elimination knockout'],['double_elimination','Double elimination'],['groups_knockout','Groups + knockouts'],['head_to_head','Head-to-head (2 teams)']];
 const tournamentDefaults={pool_mode:'single',tournament_format:'league_playoffs',round_robin_legs:1,overs_per_innings:20,venue_mode:'random',seeding_mode:'random',playoff_teams:4,tie_rule:'super_over',group_assignments:{}};
+// Stable, per-fixture ground assignment for schedule display. Does not change database fixtures.
+// Hash the fixture UUID instead of Math.random(), so all viewers see the same ground on refresh.
+const iplGrounds={
+ india:[
+ ['M. A. Chidambaram Stadium','Chennai','Spin-friendly, slower surface'],
+ ['Wankhede Stadium','Mumbai','True bounce, often batting-friendly'],
+ ['Eden Gardens','Kolkata','Variable pace; often good for batting'],
+ ['M. Chinnaswamy Stadium','Bengaluru','Short boundaries, batting-friendly'],
+ ['Narendra Modi Stadium','Ahmedabad','Pitch varies by strip'],
+ ['Rajiv Gandhi International Cricket Stadium','Hyderabad','Often batting-friendly'],
+ ['Arun Jaitley Stadium','Delhi','Usually good for stroke play'],
+ ['Sawai Mansingh Stadium','Jaipur','Can assist slower bowling'],
+ ['Punjab Cricket Association IS Bindra Stadium','Mohali','Pace and bounce can help seamers'],
+ ['HPCA Stadium','Dharamshala','Seam movement and bounce possible'],
+ ['Ekana Cricket Stadium','Lucknow','Often slower, spin can feature'],
+ ['ACA–VDCA Cricket Stadium','Visakhapatnam','Generally balanced conditions'],
+ ['Barabati Stadium','Cuttack','Conditions vary by match'],
+ ['Holkar Cricket Stadium','Indore','Generally high-scoring']
+ ],
+ dubai:[
+ ['Dubai International Cricket Stadium','Dubai','Often slower later; dew may matter'],
+ ['Sharjah Cricket Stadium','Sharjah','Short boundaries; pitch can slow'],
+ ['Sheikh Zayed Cricket Stadium','Abu Dhabi','Often balanced; pace-off useful']
+ ]
+};
+function fixtureGround(f,mode){
+ const key=String(f.id||[f.room_id,f.match_number,f.home_team_id,f.away_team_id].join(':'));
+ let hash=2166136261;
+ for(let i=0;i<key.length;i++){hash=Math.imul(hash^key.charCodeAt(i),16777619)>>>0;}
+ const venues=mode==='dubai'?iplGrounds.dubai:mode==='india'?iplGrounds.india:mode==='neutral'?iplGrounds.dubai:[...iplGrounds.india,...iplGrounds.dubai];
+ return venues[hash%venues.length];
+}
 function tournamentOptions(items,value){return items.map(([v,label])=>`<option value="${esc(v)}" ${String(value)===String(v)?'selected':''}>${esc(label)}</option>`).join('')}
 async function fetchTournament(){
  if(!room)return;
@@ -253,7 +299,7 @@ function tournamentHtml(){
  const d=tournamentDraft||tournamentDefaults;
  const label=(k)=>({single:'Single pool',two:'Two pools',random:'Random',manual:'Manual',dubai:'Dubai',india:'India',neutral:'Neutral venue',super_over:'Super Over',allow_tie:'Allow ties'})[k]||k;
  const teamName=id=>teams.find(t=>t.id===id)?.name||'TBD';
- const schedule=tournamentFixtures.length?`<div class="card"><h2>📅 Match Schedule (${tournamentFixtures.length} matches)</h2><p class="muted small">Fixtures are shared across all participants. Playoff and knockout rounds will be added later.</p><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr><th>Match</th><th>Stage</th><th>Round</th><th>Home</th><th>Away</th><th>Status</th></tr></thead><tbody>${tournamentFixtures.map(f=>`<tr><td>${f.match_number}</td><td>${esc(f.stage==='group'?'Group '+f.group_name:'League')}</td><td>${f.round_number}${f.leg===2?' · Leg 2':''}</td><td>${esc(teamName(f.home_team_id))}</td><td>${esc(teamName(f.away_team_id))}</td><td>${esc(f.status)}</td></tr>`).join('')}</tbody></table></div></div>`:'';
+ const schedule=tournamentFixtures.length?`<div class="card"><h2>📅 Match Schedule (${tournamentFixtures.length} matches)</h2><p class="muted small">Fixtures are shared across all participants. Grounds are assigned consistently from each fixture ID according to the saved venue mode. Pitch descriptions are general guides, not match-day conditions. Swipe sideways on smaller screens to see every column. Playoff and knockout rounds will be added later.</p><div class="fixture-table-wrap" role="region" aria-label="Tournament match schedule" tabindex="0"><table class="fixture-table"><thead><tr><th scope="col">Match</th><th scope="col">Stage</th><th scope="col">Round</th><th scope="col">Home team</th><th scope="col">Away team</th><th scope="col">Ground</th><th scope="col">Pitch guide</th><th scope="col">Status</th></tr></thead><tbody>${tournamentFixtures.map(f=>`<tr><td class="fixture-number">#${esc(f.match_number)}</td><td>${esc(f.stage==='group'?'Group '+f.group_name:'League')}</td><td>${esc(f.round_number)}${f.leg===2?' · Leg 2':''}</td><td class="fixture-team">${esc(teamName(f.home_team_id))}</td><td class="fixture-team">${esc(teamName(f.away_team_id))}</td><td><b>${esc(fixtureGround(f,tournamentConfig?.venue_mode||'random')[0])}</b><div class="muted small">${esc(fixtureGround(f,tournamentConfig?.venue_mode||'random')[1])}</div></td><td class="muted small">${esc(fixtureGround(f,tournamentConfig?.venue_mode||'random')[2])}</td><td><span class="fixture-status">${esc(f.status)}</span></td></tr>`).join('')}</tbody></table></div></div>`:'';
  const generationSupported=['round_robin','league_playoffs','groups_knockout','head_to_head'].includes(tournamentConfig?.tournament_format);
  const generateControls=host&&tournamentConfig&&tournamentFixtures.length===0?`<div class="card"><h2>Generate Fixtures</h2><p class="muted small">${generationSupported?'Generate league or group fixtures using the saved configuration.':'This format requires a knockout bracket generator, which is not yet available.'} Fixture generation is separate from match simulation.</p><button id="tournamentGenerateBtn" ${generationSupported&&ready?'':'disabled'}>📅 Generate Fixtures</button></div>`:'';
  const summary=tournamentConfig?`<div class="card"><h2>Saved tournament configuration</h2><div class="grid">${[['Format',tournamentFormats.find(x=>x[0]===tournamentConfig.tournament_format)?.[1]],['Pools',label(tournamentConfig.pool_mode)],['Overs',tournamentConfig.overs_per_innings],['Venue',label(tournamentConfig.venue_mode)],['Seeding',label(tournamentConfig.seeding_mode)],['Tie rule',label(tournamentConfig.tie_rule)],['Status',tournamentConfig.status]].map(([a,b])=>`<div class="stat"><span class="muted small">${esc(a)}</span><div><b>${esc(b)}</b></div></div>`).join('')}</div><p class="muted small">Match simulation is coming in a later stage.</p></div>`:'';
