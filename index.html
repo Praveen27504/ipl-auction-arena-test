@@ -102,16 +102,26 @@ async function rpc(fn,args){let {data,error}=await db.rpc(fn,args);if(error)thro
 async function init(){
   if(SUPABASE_URL.startsWith('PASTE_')||SUPABASE_KEY.startsWith('PASTE_')){notice('Supabase configuration missing.',true);return;}
   db=createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{detectSessionInUrl:true,persistSession:true,autoRefreshToken:true}});
-  db.auth.onAuthStateChange((_event,session)=>{setTimeout(()=>applySession(session).catch(e=>notice(e.message,true)),0)});
+  db.auth.onAuthStateChange((event,session)=>{
+    // Token refreshes do not require rebuilding the room's Realtime subscription.
+    if(event==='TOKEN_REFRESHED' || event==='USER_UPDATED')return;
+    setTimeout(()=>applySession(session).catch(e=>notice(e.message,true)),0);
+  });
   const {data:{session},error}=await db.auth.getSession();if(error)throw error;
   await applySession(session);
 }
 let authGeneration=0;
 let roomLoadGeneration=0;
 let realtimeChannelSerial=0;
+let roomLoadQueue=Promise.resolve();
+let lastSessionIdentity=null;
 async function applySession(session){
-  const generation=++authGeneration;
   const user=session?.user;
+  const sessionIdentity=user ? (user.id+':'+(user.is_anonymous?'anonymous':'google')) : 'signed-out';
+  // INITIAL_SESSION and getSession can both report the same identity.
+  if(lastSessionIdentity===sessionIdentity && me===(user&&!user.is_anonymous?user.id:null))return;
+  lastSessionIdentity=sessionIdentity;
+  const generation=++authGeneration;
   const googleUser=!!user&&!user.is_anonymous;
   const newId=googleUser?user.id:null;
   if(me!==newId){clearTimeout(autoNominateTimeout);autoNominateTimeout=null;lastResultKey=null;
@@ -138,6 +148,12 @@ function rememberRoom(r){try{const key='ipl-recent-rooms-'+me;const old=JSON.par
 function rememberedRooms(){try{return JSON.parse(localStorage.getItem('ipl-recent-rooms-'+me)||'[]')}catch(e){return []}}
 async function loadBannedUsers(){if(!room||room.host_id!==me){bannedUsers=[];return;}try{bannedUsers=await rpc('auction_list_bans',{p_room:room.id})||[]}catch(e){bannedUsers=[];}}
 async function loadRoom(code){
+  // Serialize channel removal/creation even if login and a manual click overlap.
+  const task=roomLoadQueue.catch(()=>{}).then(()=>loadRoomInternal(code));
+  roomLoadQueue=task.catch(()=>{});
+  return task;
+}
+async function loadRoomInternal(code){
   const loadGeneration=++roomLoadGeneration;
   hostSettingsDraft=null;manualPlayerChoice='';tournamentConfig=null;tournamentReady=null;tournamentDraft=null;
   const {data:r,error}=await db.from('rooms').select('*').eq('code',code.toUpperCase()).maybeSingle();
@@ -158,7 +174,7 @@ async function loadRoom(code){
   if(loadGeneration!==roomLoadGeneration)return;
   await loadBannedUsers();
   if(loadGeneration!==roomLoadGeneration)return;
-  const newChannel=db.channel('auction-'+r.id+'-'+(++realtimeChannelSerial))
+  const newChannel=db.channel('auction-'+r.id+'-'+(++realtimeChannelSerial)+'-'+crypto.randomUUID())
     .on('postgres_changes',{event:'*',schema:'public',table:'rooms',filter:'id=eq.'+r.id},refresh)
     .on('postgres_changes',{event:'*',schema:'public',table:'teams',filter:'room_id=eq.'+r.id},refresh)
     .on('postgres_changes',{event:'*',schema:'public',table:'players',filter:'room_id=eq.'+r.id},refresh)
