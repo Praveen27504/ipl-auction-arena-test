@@ -126,7 +126,7 @@ function renderReauctionWidget(){
  if(!room||profileOpen||room.auction_ended){box.classList.add('hide');return;}
  const host=room.host_id===me;
  const mine=teams.find(t=>t.manager_id===me&&!t.retired_at);
- if(!host&&!mine){box.classList.add('hide');return;}
+ if(!((host&&tab==='host')||(mine&&tab==='squads'))){box.classList.add('hide');return;}
  box.classList.remove('hide');
  const open=reauctionPolls.find(p=>p.status==='open');
  const recent=reauctionPolls.slice(0,4);
@@ -136,9 +136,9 @@ function renderReauctionWidget(){
  // Preserve the host's native dropdown while it is being used.
  if(existingSelect&&document.activeElement===existingSelect)return;
  const eligible=players.filter(p=>p.status==='sold'&&p.owner_team&&!reauctionPolls.some(q=>q.player_id===p.id&&q.status==='open'));
- const hostControls=host&&room.phase==='auction'?`<div class="reauction-box"><h3>🗳️ Host: Re-Auction Poll</h3><p class="poll-meta">Ask active franchises to approve re-auctioning a SOLD player. Approval only queues the player; resale is not yet enabled.</p><label for="reauctionPlayerSelect">Select sold player</label><select id="reauctionPlayerSelect"><option value="">Choose a player</option>${eligible.map(p=>`<option value="${esc(p.id)}" ${selected===p.id?'selected':''}>${esc(p.name)} — ${esc(teams.find(t=>t.id===p.owner_team)?.name||'Owner')} (${fmt(p.sold_price)})</option>`).join('')}</select><p><button id="startReauctionPollBtn" ${open?'disabled':''}>Start 30-second vote</button></p></div>`:'';
- const current=open?`<div class="reauction-box"><h3>🗳️ Vote: ${esc(playerName(open.player_id))}</h3><p class="poll-meta">${open.yes} Yes · ${open.no} No · ${open.required_yes} Yes required from ${open.eligible} franchises · <b>${seconds}s remaining</b></p><div class="poll-progress"><div style="width:${Math.min(100,100*Number(open.yes||0)/Math.max(1,Number(open.required_yes||1)))}%"></div></div>${mine?'<div class="poll-actions"><button data-reauction-vote="yes">Yes — approve</button><button class="alt" data-reauction-vote="no">No — reject</button></div><p class="poll-meta">One vote per franchise. A second vote is rejected by Supabase.</p>':'<p class="poll-meta">Only active franchise managers can vote.</p>'}</div>`:'';
- const history=recent.length?`<div class="reauction-box"><h3>Poll results</h3>${recent.map(p=>`<div class="list"><b>${esc(playerName(p.player_id))}</b> · ${esc(p.status.toUpperCase())} · ${p.yes}/${p.required_yes} Yes required${p.status==='approved'?' · Queued (resale not active)':''}</div>`).join('')}</div>`:'';
+ const hostControls=host&&tab==='host'&&room.phase==='auction'?`<div class="reauction-box"><h3>🗳️ Host: Re-Auction Poll</h3><p class="poll-meta">Ask active franchises to approve re-auctioning a SOLD player. Approved players enter the resale queue and are nominated automatically when the auction is ready.</p><label for="reauctionPlayerSelect">Select sold player</label><select id="reauctionPlayerSelect"><option value="">Choose a player</option>${eligible.map(p=>`<option value="${esc(p.id)}" ${selected===p.id?'selected':''}>${esc(p.name)} — ${esc(teams.find(t=>t.id===p.owner_team)?.name||'Owner')} (${fmt(p.sold_price)})</option>`).join('')}</select><p><button id="startReauctionPollBtn" ${open?'disabled':''}>Start 30-second vote</button></p></div>`:'';
+ const current=open&&(tab==='squads'||(host&&tab==='host'))?`<div class="reauction-box"><h3>🗳️ Vote: ${esc(playerName(open.player_id))}</h3><p class="poll-meta">${open.yes} Yes · ${open.no} No · ${open.required_yes} Yes required from ${open.eligible} franchises · <b>${seconds}s remaining</b></p><div class="poll-progress"><div style="width:${Math.min(100,100*Number(open.yes||0)/Math.max(1,Number(open.required_yes||1)))}%"></div></div>${mine?'<div class="poll-actions"><button data-reauction-vote="yes">Yes — approve</button><button class="alt" data-reauction-vote="no">No — reject</button></div><p class="poll-meta">One vote per franchise. A second vote is rejected by Supabase.</p>':'<p class="poll-meta">Only active franchise managers can vote.</p>'}</div>`:'';
+ const history=host&&tab==='host'&&recent.length?`<div class="reauction-box"><h3>Poll results</h3>${recent.map(p=>`<div class="list"><b>${esc(playerName(p.player_id))}</b> · ${esc(p.status.toUpperCase())} · ${p.yes}/${p.required_yes} Yes required${p.status==='approved'?' · Approved for resale':''}</div>`).join('')}</div>`:'';
  box.innerHTML=hostControls+current+history+(reauctionPollError?`<p class="error small">Polls: ${esc(reauctionPollError)}</p>`:'');
 }
 let profileOpen=false,profileLoading=false,profileData=null,bannedUsers=[];let noticeTimer;const notice=(s,bad=false)=>{clearTimeout(noticeTimer);$('notice').innerHTML=s?`<div class="card ${bad?'error':'success'}" role="alert">${esc(s)}</div>`:'';if(s)noticeTimer=setTimeout(()=>$('notice').innerHTML='',6500)};
@@ -594,7 +594,7 @@ $('reauctionWidget').addEventListener('click',async e=>{
   if(room.host_id!==me)return;
   const player=$('reauctionPlayerSelect')?.value;
   if(!player){notice('Choose a sold player first',true);return;}
-  if(!confirm('Start a 30-second majority vote? This only queues the player; it will NOT resell the player yet.'))return;
+  if(!confirm('Start a 30-second majority vote? Approval queues the player for automatic resale nomination.'))return;
   btn.disabled=true;
   try{await rpc('start_reauction_poll',{p_room:room.id,p_player:player});notice('Poll started');await refreshReauction(true);}
   catch(err){notice('Poll not started: '+err.message,true);btn.disabled=false;}
