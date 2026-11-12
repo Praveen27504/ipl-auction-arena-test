@@ -90,13 +90,55 @@
 .fixture-table .fixture-team{font-weight:650;min-width:145px}
 .fixture-table .fixture-status{display:inline-block;border:1px solid var(--line,#384454);border-radius:999px;padding:4px 9px;font-size:12px;white-space:nowrap}
 @media(max-width:649px){.fixture-table th,.fixture-table td{padding:11px 12px}.fixture-table-wrap{margin-top:10px}}
-</style></head><body><header><div class="brand">🏏 IPL AUCTION ARENA</div><div class="row"><span class="tag" id="connection">CONNECTING</span><button class="alt hide" id="profileBtn" style="padding:7px 11px">My Profile</button><button class="alt hide" id="signOutBtn" style="padding:7px 11px">Sign out</button></div></header><div id="resultOverlay" class="result-overlay hide" aria-live="polite"><div id="resultContent" class="result-card"></div></div><main class="wrap"><div id="notice" role="status"></div><section id="authGate" class="card hide"><h2>Sign in to IPL Auction Arena</h2><p>Use the same Google account on every device to recover your franchise and Host Controls.</p><button id="googleBtn">Continue with Google</button><p class="muted small">Existing anonymous rooms are not automatically transferred to Google accounts. Finish or back up old auctions before switching identities.</p></section><section id="welcome" class="hide"><h1>Build your dream IPL franchise.</h1><p>Private multiplayer auctions. Sign in with Google to keep your franchise and Host Controls across devices.</p><div class="grid"><div class="card"><h2>Create a room</h2><label>Your display name (shown on this device)</label><input id="hostName" value="Host"><label>Room title</label><input id="title" value="Friends IPL Auction"><label>Auction player pool</label><select id="roomFormat"><option value="ipl_classic_325">IPL Classic — 325 predefined players</option><option value="custom">Custom — add or import players yourself</option><option value="mini_100" disabled>IPL Mini — 100 players (coming later)</option></select><p class="muted small">The Classic format loads all nine Excel lots and their statistics automatically. Custom rooms start empty.</p><label>Maximum franchises (2–10)</label><input id="slots" type="number" min="2" max="10" value="4"><p class="muted small">Participants name their own franchises when joining.</p><label>Purse (₹ Cr)</label><input id="purse" type="number" value="120" min="1" step=".01"><label>Bid increment (₹ Cr)</label><input id="increment" type="number" value=".25" min=".25" max=".25" step=".25" readonly><p><button id="createBtn">Create room</button></p></div><div class="card"><h2>Join a room</h2><label>Your name</label><input id="guestName" placeholder="Your name"><label>Room code</label><input id="code" placeholder="ABC123" maxlength="6" style="text-transform:uppercase"><p><button id="previewBtn">Find room</button></p><div id="preview"></div></div></div></section><section id="profileView" class="hide"><div class="row between"><h1>My Profile</h1><button class="alt" id="profileBackBtn">Back to auction</button></div><div id="profileContent" class="card"><p>Loading profile…</p></div></section><section id="live" class="hide"><div class="row between"><div><h1 id="roomTitle"></h1><p id="roomMeta"></p></div><button class="alt" id="replaceTeamBtn">Change franchise</button><button class="alt" id="leaveBtn">Leave this device</button></div><nav><button class="active" data-tab="auction">Auction</button><button data-tab="squads">Squads</button><button data-tab="players">Player Pool</button><button data-tab="history">Auction History</button><button data-tab="tournament">Tournament</button><button data-tab="host" id="hostTab" class="hide">Host Controls</button></nav><div id="panel"></div></section><footer class="muted small">Unofficial fan project. The multiplayer timed auction is implemented here; Playing XI selection is available after the auction ends. Match simulation is coming later.</footer></main><script type="module">
+.reauction-box{margin:12px 0;border:1px solid #74613b;border-radius:14px;padding:15px;background:#172b40}.reauction-box h3{margin:0 0 8px}.reauction-box .poll-meta{font-size:13px;color:#b8c9dd}.reauction-box .poll-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.reauction-box .poll-actions button{flex:1;min-width:110px}.reauction-box .poll-progress{height:9px;background:#31465d;border-radius:20px;overflow:hidden;margin:10px 0}.reauction-box .poll-progress>div{height:100%;background:#edbe62;transition:width .2s}
+</style></head><body><header><div class="brand">🏏 IPL AUCTION ARENA</div><div class="row"><span class="tag" id="connection">CONNECTING</span><button class="alt hide" id="profileBtn" style="padding:7px 11px">My Profile</button><button class="alt hide" id="signOutBtn" style="padding:7px 11px">Sign out</button></div></header><div id="resultOverlay" class="result-overlay hide" aria-live="polite"><div id="resultContent" class="result-card"></div></div><main class="wrap"><div id="notice" role="status"></div><section id="authGate" class="card hide"><h2>Sign in to IPL Auction Arena</h2><p>Use the same Google account on every device to recover your franchise and Host Controls.</p><button id="googleBtn">Continue with Google</button><p class="muted small">Existing anonymous rooms are not automatically transferred to Google accounts. Finish or back up old auctions before switching identities.</p></section><section id="welcome" class="hide"><h1>Build your dream IPL franchise.</h1><p>Private multiplayer auctions. Sign in with Google to keep your franchise and Host Controls across devices.</p><div class="grid"><div class="card"><h2>Create a room</h2><label>Your display name (shown on this device)</label><input id="hostName" value="Host"><label>Room title</label><input id="title" value="Friends IPL Auction"><label>Auction player pool</label><select id="roomFormat"><option value="ipl_classic_325">IPL Classic — 325 predefined players</option><option value="custom">Custom — add or import players yourself</option><option value="mini_100" disabled>IPL Mini — 100 players (coming later)</option></select><p class="muted small">The Classic format loads all nine Excel lots and their statistics automatically. Custom rooms start empty.</p><label>Maximum franchises (2–10)</label><input id="slots" type="number" min="2" max="10" value="4"><p class="muted small">Participants name their own franchises when joining.</p><label>Purse (₹ Cr)</label><input id="purse" type="number" value="120" min="1" step=".01"><label>Bid increment (₹ Cr)</label><input id="increment" type="number" value=".25" min=".25" max=".25" step=".25" readonly><p><button id="createBtn">Create room</button></p></div><div class="card"><h2>Join a room</h2><label>Your name</label><input id="guestName" placeholder="Your name"><label>Room code</label><input id="code" placeholder="ABC123" maxlength="6" style="text-transform:uppercase"><p><button id="previewBtn">Find room</button></p><div id="preview"></div></div></div></section><section id="profileView" class="hide"><div class="row between"><h1>My Profile</h1><button class="alt" id="profileBackBtn">Back to auction</button></div><div id="profileContent" class="card"><p>Loading profile…</p></div></section><section id="live" class="hide"><div class="row between"><div><h1 id="roomTitle"></h1><p id="roomMeta"></p></div><button class="alt" id="replaceTeamBtn">Change franchise</button><button class="alt" id="leaveBtn">Leave this device</button></div><nav><button class="active" data-tab="auction">Auction</button><button data-tab="squads">Squads</button><button data-tab="players">Player Pool</button><button data-tab="history">Auction History</button><button data-tab="tournament">Tournament</button><button data-tab="host" id="hostTab" class="hide">Host Controls</button></nav><div id="reauctionWidget" class="hide"></div><div id="panel"></div></section><footer class="muted small">Unofficial fan project. The multiplayer timed auction is implemented here; Playing XI selection is available after the auction ends. Match simulation is coming later.</footer></main><script type="module">
 import {createClient} from 'https://esm.sh/@supabase/supabase-js@2';
 // Paste ONLY your public Project URL and publishable/anon key. NEVER a service_role/secret key.
 const SUPABASE_URL='https://lxcqwkuffbnhcjnxxsqv.supabase.co';
 const SUPABASE_KEY='sb_publishable_64j_PXrDnDkAbpuAk4EQ6A_AFv1japi';
 const $=id=>document.getElementById(id),esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),fmt=x=>'₹'+Number(x||0).toFixed(2)+' Cr';
 let lastResultKey=null, resultTimeout=null, autoNominateTimeout=null, bidPending=false; let clockSkew=0; let db,me,room,teams=[],players=[],bids=[],channel,tab='auction',roomCode=(new URLSearchParams(location.search).get('room')||localStorage.getItem('ipl-live-code')),displayName=localStorage.getItem('ipl-live-name')||'Guest';
+let reauctionPolls=[],reauctionQueue=[],reauctionBusy=false,reauctionLastFetch=0,reauctionPollError='';
+async function refreshReauction(force=false){
+ if(!room||!me||reauctionBusy)return;
+ if(!force&&Date.now()-reauctionLastFetch<2500)return;
+ reauctionBusy=true;
+ try{
+  const data=await rpc('list_reauction_polls',{p_room:room.id});
+  reauctionPolls=Array.isArray(data)?data:[];
+  const open=reauctionPolls.find(x=>x.status==='open');
+  if(open){
+   // The result RPC atomically finalizes expired/decided polls; do not alter auction state.
+   const result=await rpc('reauction_poll_result',{p_poll:open.poll_id});
+   if(result?.status!=='open'){
+    const fresh=await rpc('list_reauction_polls',{p_room:room.id});
+    reauctionPolls=Array.isArray(fresh)?fresh:[];
+   }
+  }
+  reauctionPollError='';
+ }catch(e){reauctionPollError=e.message;}
+ finally{reauctionLastFetch=Date.now();reauctionBusy=false;renderReauctionWidget();}
+}
+function renderReauctionWidget(){
+ const box=$('reauctionWidget');if(!box)return;
+ if(!room||profileOpen||room.auction_ended){box.classList.add('hide');return;}
+ const host=room.host_id===me;
+ const mine=teams.find(t=>t.manager_id===me&&!t.retired_at);
+ if(!host&&!mine){box.classList.add('hide');return;}
+ box.classList.remove('hide');
+ const open=reauctionPolls.find(p=>p.status==='open');
+ const recent=reauctionPolls.slice(0,4);
+ const playerName=id=>players.find(p=>p.id===id)?.name||'Player';
+ const seconds=open?Math.max(0,Math.ceil((new Date(open.deadline).getTime()-Date.now()-clockSkew)/1000)):0;
+ const existingSelect=$('reauctionPlayerSelect');const selected=existingSelect?.value||'';
+ // Preserve the host's native dropdown while it is being used.
+ if(existingSelect&&document.activeElement===existingSelect)return;
+ const eligible=players.filter(p=>p.status==='sold'&&p.owner_team&&!reauctionPolls.some(q=>q.player_id===p.id&&q.status==='open'));
+ const hostControls=host&&room.phase==='auction'?`<div class="reauction-box"><h3>🗳️ Host: Re-Auction Poll</h3><p class="poll-meta">Ask active franchises to approve re-auctioning a SOLD player. Approval only queues the player; resale is not yet enabled.</p><label for="reauctionPlayerSelect">Select sold player</label><select id="reauctionPlayerSelect"><option value="">Choose a player</option>${eligible.map(p=>`<option value="${esc(p.id)}" ${selected===p.id?'selected':''}>${esc(p.name)} — ${esc(teams.find(t=>t.id===p.owner_team)?.name||'Owner')} (${fmt(p.sold_price)})</option>`).join('')}</select><p><button id="startReauctionPollBtn" ${open?'disabled':''}>Start 30-second vote</button></p></div>`:'';
+ const current=open?`<div class="reauction-box"><h3>🗳️ Vote: ${esc(playerName(open.player_id))}</h3><p class="poll-meta">${open.yes} Yes · ${open.no} No · ${open.required_yes} Yes required from ${open.eligible} franchises · <b>${seconds}s remaining</b></p><div class="poll-progress"><div style="width:${Math.min(100,100*Number(open.yes||0)/Math.max(1,Number(open.required_yes||1)))}%"></div></div>${mine?'<div class="poll-actions"><button data-reauction-vote="yes">Yes — approve</button><button class="alt" data-reauction-vote="no">No — reject</button></div><p class="poll-meta">One vote per franchise. A second vote is rejected by Supabase.</p>':'<p class="poll-meta">Only active franchise managers can vote.</p>'}</div>`:'';
+ const history=recent.length?`<div class="reauction-box"><h3>Poll results</h3>${recent.map(p=>`<div class="list"><b>${esc(playerName(p.player_id))}</b> · ${esc(p.status.toUpperCase())} · ${p.yes}/${p.required_yes} Yes required${p.status==='approved'?' · Queued (resale not active)':''}</div>`).join('')}</div>`:'';
+ box.innerHTML=hostControls+current+history+(reauctionPollError?`<p class="error small">Polls: ${esc(reauctionPollError)}</p>`:'');
+}
 let profileOpen=false,profileLoading=false,profileData=null,bannedUsers=[];let noticeTimer;const notice=(s,bad=false)=>{clearTimeout(noticeTimer);$('notice').innerHTML=s?`<div class="card ${bad?'error':'success'}" role="alert">${esc(s)}</div>`:'';if(s)noticeTimer=setTimeout(()=>$('notice').innerHTML='',6500)};
 async function rpc(fn,args){let {data,error}=await db.rpc(fn,args);if(error)throw Error(error.message);return data}
 async function init(){
@@ -127,7 +169,7 @@ async function applySession(session){
   if(me!==newId){clearTimeout(autoNominateTimeout);autoNominateTimeout=null;lastResultKey=null;
     roomLoadGeneration++;
     if(channel){const oldChannel=channel;channel=null;await db.removeChannel(oldChannel);}
-    room=null;teams=[];players=[];bids=[];recentEvents=[];savedXis=[];xiDraftTeam=null;profileOpen=false;$('profileView').classList.add('hide');
+    room=null;teams=[];players=[];bids=[];reauctionPolls=[];recentEvents=[];savedXis=[];xiDraftTeam=null;profileOpen=false;$('profileView').classList.add('hide');
     $('live').classList.add('hide');
   }
   me=newId;
@@ -355,7 +397,7 @@ function restoreHostSettings(){
   for(const el of document.querySelectorAll('[data-min-role]'))if(hostSettingsDraft.roles[el.dataset.minRole]!==undefined)el.value=hostSettingsDraft.roles[el.dataset.minRole];
 }
 let poolLotFilter='all',poolStatusFilter='all',skipPoolChoice='Elite Bowlers';
-function render(){if(!room||profileOpen)return;
+function render(){if(!room||profileOpen)return;renderReauctionWidget();
 // Do not destroy an open native player picker during background refreshes.
 if((tab==='auction'&&document.activeElement?.id==='manualPlayerSelect')||
    (tab==='squads'&&['xiCaptain','xiKeeper'].includes(document.activeElement?.id)))return;
@@ -502,6 +544,24 @@ function updateXiSaveState(){
   xiDraftIds.includes(xiDraftCaptain)&&keepers.some(p=>p.id===xiDraftKeeper);
  const btn=document.getElementById('saveXiBtn');if(btn)btn.disabled=!valid;
 }
+$('reauctionWidget').addEventListener('click',async e=>{
+ const btn=e.target.closest('button');if(!btn||!room)return;
+ if(btn.id==='startReauctionPollBtn'){
+  if(room.host_id!==me)return;
+  const player=$('reauctionPlayerSelect')?.value;
+  if(!player){notice('Choose a sold player first',true);return;}
+  if(!confirm('Start a 30-second majority vote? This only queues the player; it will NOT resell the player yet.'))return;
+  btn.disabled=true;
+  try{await rpc('start_reauction_poll',{p_room:room.id,p_player:player});notice('Poll started');await refreshReauction(true);}
+  catch(err){notice('Poll not started: '+err.message,true);btn.disabled=false;}
+ }
+ if(btn.dataset.reauctionVote){
+  btn.disabled=true;
+  const poll=reauctionPolls.find(p=>p.status==='open');if(!poll)return;
+  try{await rpc('vote_reauction_poll',{p_poll:poll.poll_id,p_yes:btn.dataset.reauctionVote==='yes'});notice('Vote recorded');await refreshReauction(true);}
+  catch(err){notice('Vote failed: '+err.message,true);btn.disabled=false;}
+ }
+});
 $('panel').onclick=async e=>{let t=e.target.closest('button');if(!t)return;
 if(t.id==='reopenEndedAuctionBtn'){
  if(!room||room.host_id!==me||!room.auction_ended)return;
@@ -603,6 +663,8 @@ async function tick() {
   }
 }
 setInterval(tick,100);
+setInterval(()=>{if(room&&!profileOpen)refreshReauction().catch(()=>{});},3000);
+setInterval(()=>{const p=reauctionPolls.find(x=>x.status==='open');if(p&&room&&!profileOpen)renderReauctionWidget();},1000);
 // Reconcile after missed realtime events or a device returning from sleep.
 setInterval(()=>{if(room&&tab!=='players')refresh().catch(e=>notice(e.message,true))},5000);
 async function syncClock(){if(!db)return;let a=Date.now();let {data,error}=await db.rpc('server_clock');let b=Date.now();if(!error&&data)clockSkew=new Date(data).getTime()-(a+b)/2;}
